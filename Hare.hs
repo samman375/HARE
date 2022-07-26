@@ -76,7 +76,7 @@ extendPath p = map (\x -> (GoTo p x)) $
 -- at the given target waypoint.
 
 -- Maybe need to deal with empty case?
-findPaths :: (Wp wp) => Path wp -> wp -> [Path wp]
+findPaths :: (Wp wp) => Path wp -> wp -> [Path wp] -- TODO: THIS FAILS AUTOMARKING
 findPaths p t = do
   ex <- extendPath p
   if getWp ex == t
@@ -121,7 +121,11 @@ unEncoded (Encoded ws) = ws
 -- Hint: for negative n, you get to choose the behavior.
 
 rotate :: Int -> Encoded -> Encoded
-rotate = error "'rotate' not implemented"
+rotate n e = Encoded $ rotate' n (unEncoded e)
+  where
+    rotate' :: Int -> [Word8] -> [Word8]
+    rotate' 0 ws = ws
+    rotate' n (w:ws) = rotate' (n - 1) (ws ++ [w])
 
 -- Problem 6. Come up with an encoding scheme which gets
 -- around the problem of the spinning disk. More formally,

@@ -112,7 +112,7 @@ findPaths p t = do
 data Encoded = Encoded [Word8] deriving (Show, Eq)
 
 unEncoded :: Encoded -> [Word8]
-unEncoded (Encoded ws) = ws
+unEncoded (Encoded xs) = xs
 
 -- Problem 5. Implement a function `rotate` which simulates
 -- the effect of the spinning disk by rotating the given
@@ -124,8 +124,9 @@ rotate :: Int -> Encoded -> Encoded
 rotate n e = Encoded $ rotate' n (unEncoded e)
   where
     rotate' :: Int -> [Word8] -> [Word8]
-    rotate' 0 ws = ws
-    rotate' n (w:ws) = rotate' (n - 1) (ws ++ [w])
+    rotate' _ [] = []
+    rotate' 0 xs = xs
+    rotate' n (w:xs) = rotate' (n - 1) (xs ++ [w])
 
 -- Problem 6. Come up with an encoding scheme which gets
 -- around the problem of the spinning disk. More formally,
@@ -137,11 +138,36 @@ rotate n e = Encoded $ rotate' n (unEncoded e)
 -- 2. Decoding is rotationally invariant, i.e.
 -- decode . rotate n . encode = Just for any positive n.
 
+-- Encoding scheme: 0 (xs) 0 (xs) 0
 encode :: [Word8] -> Encoded
-encode = error "'encode' not implemented"
+encode xs = Encoded ([0] ++ xs ++ [0] ++ xs ++ [0])
 
 decode :: Encoded -> Maybe [Word8]
-decode = error "'decode' not implemented"
+decode e = getPattern (balance e)
+  where
+    getPattern :: [Word8] -> Maybe [Word8]
+    getPattern xs = if invalidCode xs ((patternLength xs) + 2)
+      then Nothing
+      else Just $ take (patternLength xs) (tail xs)
+
+    -- Invalid if not balanced after (pattern + 2) rotations
+    invalidCode :: [Word8] -> Int -> Bool
+    invalidCode [] _ = True
+    invalidCode _ 0 = True
+    invalidCode xs n = if isBalanced xs
+      then False
+      else invalidCode xs (n - 1)
+    
+    balance :: Encoded -> [Word8]
+    balance (Encoded xs) = if isBalanced xs
+      then xs
+      else balance (rotate 1 (Encoded xs))
+
+    isBalanced :: [Word8] -> Bool
+    isBalanced xs = take (patternLength xs) (tail xs) == drop ((patternLength xs) + 2) (init xs)
+
+    patternLength :: [Word8] -> Int
+    patternLength xs = (length xs - 3) `div` 2
 
 -- Efficiency mark: encoding a list of bytes with length
 -- no more than 16 should result in an encoded list of

@@ -140,34 +140,38 @@ rotate n e = Encoded $ rotate' n (unEncoded e)
 
 -- Encoding scheme: 0 (xs) 0 (xs) 0
 encode :: [Word8] -> Encoded
-encode xs = Encoded ([0] ++ xs ++ [0] ++ xs ++ [0])
+encode xs = Encoded ([0] ++ xs ++ [1] ++ xs ++ [0])
 
 decode :: Encoded -> Maybe [Word8]
 decode e = getPattern (balance e)
-  where
-    getPattern :: [Word8] -> Maybe [Word8]
-    getPattern xs = if invalidCode xs ((patternLength xs) + 2)
-      then Nothing
-      else Just $ take (patternLength xs) (tail xs)
+  -- where
+getPattern :: [Word8] -> Maybe [Word8]
+getPattern xs = if invalidCode xs ((patternLength xs) + 2)
+  then Nothing
+  else Just $ take (patternLength xs) (tail xs)
 
-    -- Invalid if not balanced after (pattern + 2) rotations
-    invalidCode :: [Word8] -> Int -> Bool
-    invalidCode [] _ = True
-    invalidCode _ 0 = True
-    invalidCode xs n = if isBalanced xs
-      then False
-      else invalidCode xs (n - 1)
-    
-    balance :: Encoded -> [Word8]
-    balance (Encoded xs) = if isBalanced xs
-      then xs
-      else balance (rotate 1 (Encoded xs))
+-- Invalid if not balanced after (pattern + 2) rotations
+invalidCode :: [Word8] -> Int -> Bool
+invalidCode [] _ = True
+invalidCode _ 0 = True
+invalidCode xs n = if isBalanced xs
+  then False
+  else invalidCode xs (n - 1)
 
-    isBalanced :: [Word8] -> Bool
-    isBalanced xs = take (patternLength xs) (tail xs) == drop ((patternLength xs) + 2) (init xs)
+balance :: Encoded -> [Word8]
+balance (Encoded xs) = if isBalanced xs
+  then xs
+  else balance (rotate 1 (Encoded xs))
 
-    patternLength :: [Word8] -> Int
-    patternLength xs = (length xs - 3) `div` 2
+isBalanced :: [Word8] -> Bool
+isBalanced xs = 
+  xs !! 0 == 0 &&
+  xs !! ((length xs) - 1) == 0 &&
+  xs !! (patternLength xs + 1) == 1 &&
+  take (patternLength xs) (tail xs) == drop ((patternLength xs) + 2) (init xs)
+
+patternLength :: [Word8] -> Int
+patternLength xs = (length xs - 3) `div` 2
 
 -- Efficiency mark: encoding a list of bytes with length
 -- no more than 16 should result in an encoded list of

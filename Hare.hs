@@ -138,7 +138,7 @@ rotate n e = Encoded $ rotate' n (unEncoded e)
 -- 2. Decoding is rotationally invariant, i.e.
 -- decode . rotate n . encode = Just for any positive n.
 
--- Encoding scheme: 0 (xs) 0 (xs) 0
+-- Encoding scheme: 0 (xs) 1 (xs) 0
 encode :: [Word8] -> Encoded
 encode xs = Encoded ([0] ++ xs ++ [1] ++ xs ++ [0])
 
@@ -227,7 +227,35 @@ data Chunk =
 -- the remaining chunks to track 40.
 
 chunks :: [Word8] -> State TrackNo [Chunk]
-chunks = error "'chunks' not implemented"
+chunks xs = do
+  n <- get
+  let res = makeChunks xs n
+  let newN = getNewTrackNo res
+  put newN
+  pure $ res
+  
+  where
+    -- given list of words and a track number, create list of chunks
+    makeChunks :: [Word8] -> Word8 -> [Chunk]
+    makeChunks [] _ = []
+    makeChunks ws 40 = [Chunk 40 (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) 40
+    makeChunks ws t = [Chunk t (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) (t + 1)
+    
+    -- return first chunk's worth of words
+    getFirstChunk :: [Word8] -> [Word8]
+    getFirstChunk = take 2048
+
+    -- return same list of words with first chunk removed
+    removeChunk :: [Word8] -> [Word8]
+    removeChunk = drop 2048
+
+    -- get the new first available track number
+    getNewTrackNo :: [Chunk] -> Word8
+    getNewTrackNo cs = (getTrackNo (last cs)) + 1
+
+    -- get the track no. of a given chunk
+    getTrackNo :: Chunk -> Word8
+    getTrackNo (Chunk t _) = t
 
 -- The `FSH t` data type represents a file system hierarchy
 -- in which each file is annotated with data of type `t`.

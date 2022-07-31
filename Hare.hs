@@ -76,12 +76,12 @@ extendPath p = map (\x -> (GoTo p x)) $
 -- at the given target waypoint.
 
 -- Maybe need to deal with empty case?
-findPaths :: (Wp wp) => Path wp -> wp -> [Path wp] -- TODO: THIS FAILS AUTOMARKING
-findPaths p t = do
-  ex <- extendPath p
-  if getWp ex == t
-    then pure ex
-    else findPaths ex t
+findPaths :: (Wp wp) => Path wp -> wp -> [Path wp]
+findPaths p t
+  | getWp p == t = pure p
+  | otherwise = do
+    ex <- extendPath p
+    findPaths ex t
 
 -- Efficiency mark 5: your solution should not spend time
 -- expanding "useless" partial solutions.
@@ -234,32 +234,32 @@ chunks xs = do
   let res = makeChunks xs n
   let newN = getNewTrackNo res
   put newN
-  pure $ res
- where
-    -- given list of words and a track number, create list of chunks
-    makeChunks :: [Word8] -> Word8 -> [Chunk]
-    makeChunks [] _ = []
-    makeChunks ws 40 = [Chunk 40 (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) 40
-    makeChunks ws t = [Chunk t (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) (t + 1)
-    
-    -- return first chunk's worth of words
-    getFirstChunk :: [Word8] -> [Word8]
-    getFirstChunk = take ((2048 `div` 2) - 3)
+  pure res
+    where
+      -- given list of words and a track number, create list of chunks
+      makeChunks :: [Word8] -> Word8 -> [Chunk]
+      makeChunks [] _ = []
+      makeChunks ws 40 = [Chunk 40 (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) 40
+      makeChunks ws t = [Chunk t (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) (t + 1)
+      
+      -- return first chunk's worth of words
+      getFirstChunk :: [Word8] -> [Word8]
+      getFirstChunk = take ((2048 `div` 2) - 3)
 
-    -- return same list of words with first chunk removed
-    removeChunk :: [Word8] -> [Word8]
-    removeChunk = drop ((2048 `div` 2) - 3)
+      -- return same list of words with first chunk removed
+      removeChunk :: [Word8] -> [Word8]
+      removeChunk = drop ((2048 `div` 2) - 3)
 
-    -- get the new first available track number
-    getNewTrackNo :: [Chunk] -> Word8
-    getNewTrackNo cs = (getTrackNo (last cs)) + 1
+      -- get the new first available track number
+      getNewTrackNo :: [Chunk] -> Word8
+      getNewTrackNo cs = (getTrackNo (last cs)) + 1
 
-    -- get the track no. of a given chunk
-    getTrackNo :: Chunk -> Word8
-    getTrackNo (Chunk t _) = t
+      -- get the track no. of a given chunk
+      getTrackNo :: Chunk -> Word8
+      getTrackNo (Chunk t _) = t
 
-testChunk :: [Word8] -> [Chunk]
-testChunk xs = evalState (chunks xs) 0
+testChunks :: [Word8] -> [Chunk]
+testChunks xs = evalState (chunks xs) 0
 
 -- The `FSH t` data type represents a file system hierarchy
 -- in which each file is annotated with data of type `t`.
@@ -274,7 +274,8 @@ testChunk xs = evalState (chunks xs) 0
 -- type.
 
 instance Functor FSH where
-  fmap = error "'fmap' not implemented for FSH"
+  fmap f (File u a) = File u (f a)
+  fmap f (Dir u xs) = Dir u (map (\x -> fmap f x) xs)
 
 -- We will have to save the whole directory hierarchy to
 -- disk before the rover is rebooted. So that we can reassemble

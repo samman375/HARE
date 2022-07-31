@@ -126,7 +126,9 @@ rotate n e = Encoded $ rotate' n (unEncoded e)
     rotate' :: Int -> [Word8] -> [Word8]
     rotate' _ [] = []
     rotate' 0 xs = xs
-    rotate' n (w:xs) = rotate' (n - 1) (xs ++ [w])
+    rotate' n (w:xs) = if n > 0
+      then rotate' (n - 1) (xs ++ [w])
+      else (w:xs)
 
 -- Problem 6. Come up with an encoding scheme which gets
 -- around the problem of the spinning disk. More formally,
@@ -233,8 +235,7 @@ chunks xs = do
   let newN = getNewTrackNo res
   put newN
   pure $ res
-  
-  where
+ where
     -- given list of words and a track number, create list of chunks
     makeChunks :: [Word8] -> Word8 -> [Chunk]
     makeChunks [] _ = []
@@ -243,11 +244,11 @@ chunks xs = do
     
     -- return first chunk's worth of words
     getFirstChunk :: [Word8] -> [Word8]
-    getFirstChunk = take 2048
+    getFirstChunk = take ((2048 `div` 2) - 3)
 
     -- return same list of words with first chunk removed
     removeChunk :: [Word8] -> [Word8]
-    removeChunk = drop 2048
+    removeChunk = drop ((2048 `div` 2) - 3)
 
     -- get the new first available track number
     getNewTrackNo :: [Chunk] -> Word8
@@ -256,6 +257,9 @@ chunks xs = do
     -- get the track no. of a given chunk
     getTrackNo :: Chunk -> Word8
     getTrackNo (Chunk t _) = t
+
+testChunk :: [Word8] -> [Chunk]
+testChunk xs = evalState (chunks xs) 0
 
 -- The `FSH t` data type represents a file system hierarchy
 -- in which each file is annotated with data of type `t`.

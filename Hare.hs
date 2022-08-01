@@ -390,7 +390,14 @@ saveHeader fsh = do
 -- onto the appropriate tracks.
 
 saveFSH :: (MonadFloppy m) => FSH [Word8] -> m Bool
-saveFSH = error "'saveFSH' not implemented"
+saveFSH xs = do
+  let res = assignTracks xs
+  case res of
+    Nothing -> return False
+    Just ws -> do
+      -- map saveHeader ws
+      -- map saveChunk ws
+      return True
 
 -- Implement a program `loadFSH` that is able to reload a file
 -- system from disk. I.e. if `saveFSH fsh` returns `True`, then

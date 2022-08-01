@@ -1,8 +1,8 @@
 module Hare where
 
+import Control.Monad.State
 import Data.List (nub)
 import Data.Word
-import Control.Monad.State
 import Test.QuickCheck
 
 import RoverInterface
@@ -30,8 +30,8 @@ instance Show wp => Show (Path wp) where
 wf :: (Wp wp) => Path wp -> Bool
 wf (From _) = True
 wf (GoTo xs x) =
-  (length $ nub $ pathWps (GoTo xs x)) == (length $ pathWps (GoTo xs x)) && 
-  (wfNavigable xs x && wf xs)
+  (length $ nub $ pathWps (GoTo xs x)) == (length $ pathWps (GoTo xs x))
+    && (wfNavigable xs x && wf xs)
 
 -- Returns a list of all wp in a path
 pathWps :: (Wp wp) => Path wp -> [wp]
@@ -51,9 +51,10 @@ getWp (GoTo _ x) = x
 -- that returns `Nothing` if adding the given waypoint
 -- to the given path would result in a non-well-formed path.
 (>:>) :: (Wp wp) => Path wp -> wp -> Maybe (Path wp)
-xs >:> x = if wf (GoTo xs x) 
-  then Just (GoTo xs x) 
-  else Nothing
+xs >:> x =
+  if wf (GoTo xs x)
+    then Just (GoTo xs x)
+    else Nothing
 
 -- Problem 3. Write a function `extendPath` which returns
 -- all possible ways of extending the given `Path` by appending
@@ -67,8 +68,10 @@ xs >:> x = if wf (GoTo xs x)
 --     Just ys -> pure xs >:> ys
 
 extendPath :: (Wp wp) => Path wp -> [Path wp]
-extendPath p = map (\x -> (GoTo p x)) $ 
-  filter (\y -> wf (GoTo p y)) $ navigableFrom (getWp p)
+extendPath p =
+  map (\x -> (GoTo p x)) $
+    filter (\y -> wf (GoTo p y)) $
+      navigableFrom (getWp p)
 
 -- Problem 4. Implement a function `findPaths` which returns
 -- all possible ways of extending the given `Path` (by appending
@@ -85,9 +88,6 @@ findPaths p t
 
 -- Efficiency mark 5: your solution should not spend time
 -- expanding "useless" partial solutions.
-
-
-
 
 --- PART 2: DISK MATTERS - ENCODE/DECODE
 
@@ -122,13 +122,14 @@ unEncoded (Encoded xs) = xs
 
 rotate :: Int -> Encoded -> Encoded
 rotate n e = Encoded $ rotate' n (unEncoded e)
-  where
-    rotate' :: Int -> [Word8] -> [Word8]
-    rotate' _ [] = []
-    rotate' 0 xs = xs
-    rotate' n (w:xs) = if n > 0
+ where
+  rotate' :: Int -> [Word8] -> [Word8]
+  rotate' _ [] = []
+  rotate' 0 xs = xs
+  rotate' n (w : xs) =
+    if n > 0
       then rotate' (n - 1) (xs ++ [w])
-      else (w:xs)
+      else (w : xs)
 
 -- Problem 6. Come up with an encoding scheme which gets
 -- around the problem of the spinning disk. More formally,
@@ -146,39 +147,41 @@ encode xs = Encoded ([0] ++ xs ++ [1] ++ xs ++ [0])
 
 decode :: Encoded -> Maybe [Word8]
 decode e = getPattern (balance e)
-  where
-    getPattern :: [Word8] -> Maybe [Word8]
-    getPattern xs = if invalidCode xs ((patternLength xs) + 2)
+ where
+  getPattern :: [Word8] -> Maybe [Word8]
+  getPattern xs =
+    if invalidCode xs ((patternLength xs) + 2)
       then Nothing
       else Just $ take (patternLength xs) (tail xs)
 
-    -- Invalid if not balanced after (pattern + 2) rotations
-    invalidCode :: [Word8] -> Int -> Bool
-    invalidCode [] _ = True
-    invalidCode _ 0 = True
-    invalidCode xs n = if isBalanced xs
+  -- Invalid if not balanced after (pattern + 2) rotations
+  invalidCode :: [Word8] -> Int -> Bool
+  invalidCode [] _ = True
+  invalidCode _ 0 = True
+  invalidCode xs n =
+    if isBalanced xs
       then False
       else invalidCode xs (n - 1)
 
-    balance :: Encoded -> [Word8]
-    balance (Encoded xs) = if isBalanced xs
+  balance :: Encoded -> [Word8]
+  balance (Encoded xs) =
+    if isBalanced xs
       then xs
       else balance (rotate 1 (Encoded xs))
 
-    isBalanced :: [Word8] -> Bool
-    isBalanced xs = 
-      xs !! 0 == 0 &&
-      xs !! ((length xs) - 1) == 0 &&
-      xs !! (patternLength xs + 1) == 1 &&
-      take (patternLength xs) (tail xs) == drop ((patternLength xs) + 2) (init xs)
+  isBalanced :: [Word8] -> Bool
+  isBalanced xs =
+    xs !! 0 == 0
+      && xs !! ((length xs) - 1) == 0
+      && xs !! (patternLength xs + 1) == 1
+      && take (patternLength xs) (tail xs) == drop ((patternLength xs) + 2) (init xs)
 
-    patternLength :: [Word8] -> Int
-    patternLength xs = (length xs - 3) `div` 2
+  patternLength :: [Word8] -> Int
+  patternLength xs = (length xs - 3) `div` 2
 
 -- Efficiency mark: encoding a list of bytes with length
 -- no more than 16 should result in an encoded list of
 -- length no more than 37.
-
 
 -- PART 3: FILE SYSTEM HIERARCHY
 
@@ -187,7 +190,6 @@ decode e = getPattern (balance e)
 -- directories inside it. Each file and directory is identified
 -- by a unique `Word8`, its UID.
 
-
 -- You can make the following assumptions about the file
 -- system of the rover:
 -- 1. The total size of all the files is no more than
@@ -195,7 +197,6 @@ decode e = getPattern (balance e)
 -- 2. Every file is at most 3072 bytes long.
 -- 3. There are at most 48 files and directories (but their
 --    UIDs need not be in the range 0-47) altogether.
-
 
 -- We have decided that one track on the disk will store the
 -- contents of at most one file, i.e. that there will not be
@@ -213,8 +214,9 @@ decode e = getPattern (balance e)
 -- To reassemble a file, we have to read and decode each of its
 -- chunks from the disk in order, then concatenate the results.
 
-data Chunk =
-  Chunk TrackNo Encoded deriving (Show, Eq)
+data Chunk
+  = Chunk TrackNo Encoded
+  deriving (Show, Eq)
 
 -- Problem 7. Write a stateful function `chunks` which,
 -- when given the contents of a file, divides it into
@@ -235,31 +237,34 @@ chunks xs = do
   let newN = getNewTrackNo res
   put newN
   pure res
-    where
-      -- given list of words and a track number, create list of chunks
-      makeChunks :: [Word8] -> Word8 -> [Chunk]
-      makeChunks [] _ = []
-      makeChunks ws 40 = [Chunk 40 (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) 40
-      makeChunks ws t = [Chunk t (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) (t + 1)
-      
-      -- return first chunk's worth of words
-      getFirstChunk :: [Word8] -> [Word8]
-      getFirstChunk = take ((2048 `div` 2) - 3)
+ where
+  -- given list of words and a track number, create list of chunks
+  makeChunks :: [Word8] -> Word8 -> [Chunk]
+  makeChunks [] _ = []
+  makeChunks ws 40 = [Chunk 40 (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) 40
+  makeChunks ws t = [Chunk t (encode $ getFirstChunk ws)] ++ makeChunks (removeChunk ws) (t + 1)
 
-      -- return same list of words with first chunk removed
-      removeChunk :: [Word8] -> [Word8]
-      removeChunk = drop ((2048 `div` 2) - 3)
+  -- return first chunk's worth of words
+  getFirstChunk :: [Word8] -> [Word8]
+  getFirstChunk = take ((2048 `div` 2) - 3)
 
-      -- get the new first available track number
-      getNewTrackNo :: [Chunk] -> Word8
-      getNewTrackNo cs = (getTrackNo (last cs)) + 1
+  -- return same list of words with first chunk removed
+  removeChunk :: [Word8] -> [Word8]
+  removeChunk = drop ((2048 `div` 2) - 3)
 
-      -- get the track no. of a given chunk
-      getTrackNo :: Chunk -> Word8
-      getTrackNo (Chunk t _) = t
+  -- get the new first available track number
+  getNewTrackNo :: [Chunk] -> Word8
+  getNewTrackNo cs = (getTrackNo (last cs)) + 1
 
-testChunks :: [Word8] -> [Chunk]
-testChunks xs = evalState (chunks xs) 0
+  testChunks :: [Word8] -> [Chunk]
+  testChunks xs = evalState (chunks xs) 0
+
+-- get the track no. of a given chunk
+getTrackNo :: Chunk -> Word8
+getTrackNo (Chunk t _) = t
+
+getUnencoded :: Chunk -> [Word8]
+getUnencoded (Chunk _ e) = unEncoded e
 
 -- The `FSH t` data type represents a file system hierarchy
 -- in which each file is annotated with data of type `t`.
@@ -292,7 +297,6 @@ instance Functor FSH where
 mkHeader :: FSH [Chunk] -> FSH [TrackNo]
 mkHeader = fmap (map (\(Chunk n _) -> n))
 
-
 -- Problem 9. Implement a function `assignTracks` which divides
 -- all files in a hierarchy into chunks. Each chunk should have
 -- be assigned its unique track number. Do not allocate track 0,
@@ -303,8 +307,16 @@ mkHeader = fmap (map (\(Chunk n _) -> n))
 -- with return type `State TrackNo (FSH [Chunk])`.
 
 assignTracks :: FSH [Word8] -> Maybe (FSH [Chunk])
-assignTracks = error "'assignTracks' not implemented"
+assignTracks xs = undefined
 
+-- assignTracks xs = do
+--   let res = evalState (assignTracks' xs) 1
+--   case last res of
+--     (Chunk 40 _) -> Nothing
+--     otherwise -> Just res
+--  where
+--   assignTracks' :: FSH [Word8] -> State TrackNo (FSH [Chunk])
+--   assignTracks' ws = fmap chunks ws
 
 -- PART 4 - DISK CONTROLLER
 
@@ -323,14 +335,42 @@ assignTracks = error "'assignTracks' not implemented"
 -- on track 39.
 
 headToTrack :: (MonadFloppy m) => Word8 -> m ()
-headToTrack = error "'headToTrack' not implemented"
+headToTrack n = do
+  headBackwardLoop 40
+  if n >= 39
+    then headForwardLoop 39
+    else headForwardLoop n
+ where
+  headForwardLoop :: (MonadFloppy m) => Word8 -> m ()
+  headForwardLoop n =
+    if n > 0
+      then do
+        headForward
+        headForwardLoop (n - 1)
+      else return ()
+
+  headBackwardLoop :: (MonadFloppy m) => Word8 -> m ()
+  headBackwardLoop n =
+    if n > 0
+      then do
+        headBackward
+        headBackwardLoop (n - 1)
+      else return ()
 
 -- Problem 11. Write a program `saveChunk` which writes the
 -- given chunk onto the appropriate track of the disk.
 
 saveChunk :: (MonadFloppy m) => Chunk -> m ()
-saveChunk = error "'saveChunk' not implemented"
-
+saveChunk c = do
+  let n = getTrackNo c
+  if n < 40 && n > 0
+    then do
+      headToTrack n
+      let ws = getUnencoded c
+      if length ws < 2048
+        then writeTrack ws
+        else return ()
+    else return ()
 
 -- The function below calculates the header of the
 -- given given `FSH [Chunk]`, and saves it to track 0
@@ -341,7 +381,6 @@ saveHeader fsh = do
   headToTrack 0
   writeTrack (replicate 2048 0)
   writeTrack (unEncoded $ encode $ toBytes $ mkHeader fsh)
-
 
 -- Problem 12. Implement a program `saveFSH` that attemps to assign
 -- track to the given `fsh` using `assignTracks`. If the assignment

@@ -234,7 +234,7 @@ chunks :: [Word8] -> State TrackNo [Chunk]
 chunks xs = do
   n <- get
   let res = makeChunks xs n
-  let newN = getNewTrackNo res
+  let newN = getNewTrackNo res n
   put newN
   pure res
  where
@@ -253,8 +253,13 @@ chunks xs = do
   removeChunk = drop ((2048 `div` 2) - 3)
 
   -- get the new first available track number
-  getNewTrackNo :: [Chunk] -> Word8
-  getNewTrackNo cs = (getTrackNo (last cs)) + 1
+  -- getNewTrackNo :: [Chunk] -> Word8
+  -- getNewTrackNo cs = (getTrackNo (last cs)) + 1
+  getNewTrackNo :: [Chunk] -> Word8 -> Word8
+  getNewTrackNo cs x =
+    if (fromIntegral $ length cs) + x > 39
+      then 40
+      else (fromIntegral $ length cs) + x
 
   testChunks :: [Word8] -> [Chunk]
   testChunks xs = evalState (chunks xs) 0
@@ -307,16 +312,32 @@ mkHeader = fmap (map (\(Chunk n _) -> n))
 -- with return type `State TrackNo (FSH [Chunk])`.
 
 assignTracks :: FSH [Word8] -> Maybe (FSH [Chunk])
-assignTracks xs = undefined
+assignTracks xs = do
+  let res = evalState (assignTracks' xs) 1
+  -- Just res
+  case res of
+    File x _ ->
+      if x >= 40
+        then Nothing
+        else Just res
+    Dir x _ ->
+      if x >= 40
+        then Nothing
+        else Just res
+ where
+  assignTracks' :: FSH [Word8] -> State TrackNo (FSH [Chunk])
+  assignTracks' (File uid ws) = fmap (File uid) (chunks ws)
+  assignTracks' (Dir uid fshs) = do
+    fshs' <- mapM assignTracks' fshs
+    return (Dir uid fshs')
 
--- assignTracks xs = do
---   let res = evalState (assignTracks' xs) 1
---   case last res of
---     (Chunk 40 _) -> Nothing
---     otherwise -> Just res
---  where
---   assignTracks' :: FSH [Word8] -> State TrackNo (FSH [Chunk])
---   assignTracks' ws = fmap chunks ws
+  validChunk :: [Chunk] -> Bool
+  validChunk (Chunk _ []) = False
+  validChunk (Chunk n _) = n == 40
+
+  aboveForty :: [Chunk] -> Bool
+  aboveForty [] = False
+  aboveForty ((Chunk n _) : xs) = n >= 40 || aboveForty xs
 
 -- PART 4 - DISK CONTROLLER
 

@@ -363,7 +363,7 @@ headToTrack n = do
 saveChunk :: (MonadFloppy m) => Chunk -> m ()
 saveChunk c = do
   let n = getTrackNo c
-  if n < 40 && n > 0
+  if n < 40 && n >= 0
     then do
       headToTrack n
       let ws = getUnencoded c

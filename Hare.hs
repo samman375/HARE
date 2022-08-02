@@ -401,13 +401,25 @@ saveHeader fsh = do
 
 saveFSH :: (MonadFloppy m) => FSH [Word8] -> m Bool
 saveFSH xs = do
+  -- undefined
   let res = assignTracks xs
   case res of
     Nothing -> return False
     Just ws -> do
-      -- map saveHeader ws
-      -- map saveChunk ws
+      saveHeader ws
+      saveChunks ws
       return True
+ where
+  saveChunks :: (MonadFloppy m) => FSH [Chunk] -> m ()
+  saveChunks (File _ a) = do
+    mapM saveChunk a
+    pure ()
+  saveChunks (Dir _ as) = do
+    mapM saveChunks as
+    pure ()
+
+  -- fmap f (Dir u xs) = Dir u (map (\x -> fmap f x) xs)
+
 
 -- Implement a program `loadFSH` that is able to reload a file
 -- system from disk. I.e. if `saveFSH fsh` returns `True`, then

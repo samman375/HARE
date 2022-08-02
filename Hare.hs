@@ -312,32 +312,21 @@ mkHeader = fmap (map (\(Chunk n _) -> n))
 -- with return type `State TrackNo (FSH [Chunk])`.
 
 assignTracks :: FSH [Word8] -> Maybe (FSH [Chunk])
-assignTracks xs = do
-  let res = evalState (assignTracks' xs) 1
-  -- Just res
-  case res of
-    File x _ ->
-      if x >= 40
-        then Nothing
-        else Just res
-    Dir x _ ->
-      if x >= 40
-        then Nothing
-        else Just res
+assignTracks xs = evalState (getChunks xs) 1
  where
+  getChunks :: FSH [Word8] -> State TrackNo (Maybe (FSH [Chunk]))
+  getChunks ws = do
+    cs <- assignTracks' ws
+    t <- get
+    if t > 39
+      then return Nothing
+      else return $ Just cs
+  
   assignTracks' :: FSH [Word8] -> State TrackNo (FSH [Chunk])
   assignTracks' (File uid ws) = fmap (File uid) (chunks ws)
   assignTracks' (Dir uid fshs) = do
     fshs' <- mapM assignTracks' fshs
     return (Dir uid fshs')
-
-  validChunk :: [Chunk] -> Bool
-  validChunk (Chunk _ []) = False
-  validChunk (Chunk n _) = n == 40
-
-  aboveForty :: [Chunk] -> Bool
-  aboveForty [] = False
-  aboveForty ((Chunk n _) : xs) = n >= 40 || aboveForty xs
 
 -- PART 4 - DISK CONTROLLER
 

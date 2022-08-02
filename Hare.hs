@@ -141,9 +141,9 @@ rotate n e = Encoded $ rotate' n (unEncoded e)
 -- 2. Decoding is rotationally invariant, i.e.
 -- decode . rotate n . encode = Just for any positive n.
 
--- Encoding scheme: 0 (xs) 1 (xs) 0
+-- Encoding scheme: 3 (xs) 1 (xs) 3
 encode :: [Word8] -> Encoded
-encode xs = Encoded ([0] ++ xs ++ [1] ++ xs ++ [0])
+encode xs = Encoded ([3] ++ xs ++ [1] ++ xs ++ [3])
 
 decode :: Encoded -> Maybe [Word8]
 decode e = getPattern (balance e)
@@ -165,14 +165,24 @@ decode e = getPattern (balance e)
 
   balance :: Encoded -> [Word8]
   balance (Encoded xs) =
-    if isBalanced xs
-      then xs
-      else balance (rotate 1 (Encoded xs))
+    if startMatchesControl xs
+      then do
+        let xs' = treatPadding xs
+        if isBalanced xs'
+          then xs'
+          else balance (rotate 1 (Encoded xs))
+    else balance (rotate 1 (Encoded xs))
+
+  startMatchesControl :: [Word8] -> Bool
+  startMatchesControl xs = xs !! 0 == 3
+
+  treatPadding :: [Word8] -> [Word8]
+  treatPadding xs = reverse $ dropWhile (0 ==) $ reverse xs
 
   isBalanced :: [Word8] -> Bool
   isBalanced xs =
-    xs !! 0 == 0
-      && xs !! ((length xs) - 1) == 0
+    xs !! 0 == 3
+      && xs !! ((length xs) - 1) == 3
       && xs !! (patternLength xs + 1) == 1
       && take (patternLength xs) (tail xs) == drop ((patternLength xs) + 2) (init xs)
 
@@ -357,7 +367,7 @@ headToTrack n = do
       then do
         headForward
         headForwardLoop (n - 1)
-      else return ()
+      else pure ()
 
   headBackwardLoop :: (MonadFloppy m) => Word8 -> m ()
   headBackwardLoop n =
@@ -365,7 +375,7 @@ headToTrack n = do
       then do
         headBackward
         headBackwardLoop (n - 1)
-      else return ()
+      else pure ()
 
 -- Problem 11. Write a program `saveChunk` which writes the
 -- given chunk onto the appropriate track of the disk.
@@ -379,8 +389,8 @@ saveChunk c = do
       let ws = getUnencoded c
       if length ws < 2048
         then writeTrack ws
-        else return ()
-    else return ()
+        else pure ()
+    else pure ()
 
 -- The function below calculates the header of the
 -- given given `FSH [Chunk]`, and saves it to track 0
@@ -401,14 +411,13 @@ saveHeader fsh = do
 
 saveFSH :: (MonadFloppy m) => FSH [Word8] -> m Bool
 saveFSH xs = do
-  -- undefined
   let res = assignTracks xs
   case res of
-    Nothing -> return False
+    Nothing -> pure False
     Just ws -> do
       saveHeader ws
       saveChunks ws
-      return True
+      pure True
  where
   saveChunks :: (MonadFloppy m) => FSH [Chunk] -> m ()
   saveChunks (File _ a) = do
@@ -418,9 +427,6 @@ saveFSH xs = do
     mapM saveChunks as
     pure ()
 
-  -- fmap f (Dir u xs) = Dir u (map (\x -> fmap f x) xs)
-
-
 -- Implement a program `loadFSH` that is able to reload a file
 -- system from disk. I.e. if `saveFSH fsh` returns `True`, then
 -- (saveFSH fsh >> loadFSH) should return `Just fsh`.
@@ -429,3 +435,11 @@ saveFSH xs = do
 
 loadFSH :: (MonadFloppy m) => m (Maybe (FSH [Word8]))
 loadFSH = error "'loadFSH' not implemented"
+-- read header using fromBytes
+-- read each byte?
+  -- readTrack
+  -- fromBytes
+  -- writeTrack
+
+
+-- (5)3151(1)3141(5)00000000000000000000000000000000000000
